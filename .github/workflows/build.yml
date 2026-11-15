@@ -14,6 +14,20 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Locate project
+        id: loc
+        run: |
+          if [ -f ParsBot.zip ]; then unzip -q -o ParsBot.zip; fi
+          f=$(find . -name settings.gradle.kts -not -path './.git/*' | head -n 1)
+          if [ -z "$f" ]; then
+            echo "settings.gradle.kts not found. Repo contents:"
+            find . -maxdepth 3 -not -path './.git/*' | head -60
+            exit 1
+          fi
+          d=$(dirname "$f")
+          echo "Project dir: $d"
+          echo "dir=$d" >> "$GITHUB_OUTPUT"
+
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -24,10 +38,11 @@ jobs:
           gradle-version: 8.9
 
       - name: Build
+        working-directory: ${{ steps.loc.outputs.dir }}
         run: gradle assembleDebug --no-daemon
 
       - name: Rename APK
-        run: cp app/build/outputs/apk/debug/app-debug.apk ParsBot-${{ github.ref_name }}.apk
+        run: cp "${{ steps.loc.outputs.dir }}/app/build/outputs/apk/debug/app-debug.apk" "ParsBot-${{ github.ref_name }}.apk"
 
       - uses: actions/upload-artifact@v4
         with:
